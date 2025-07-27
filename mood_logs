@@ -1,0 +1,14 @@
+# Create mood_logs table if not exists
+with sqlite3.connect('users.db') as conn:
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS mood_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            typed_sentence TEXT,
+            typing_speed REAL,
+            backspace_rate REAL,
+            burst_duration REAL,
+            idle_time REAL,
+            hold_time REAL,
+            detected_mood TEXT
+        )
+    ''')
