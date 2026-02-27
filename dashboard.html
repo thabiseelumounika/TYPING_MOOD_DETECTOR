@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Dashboard | Typing Mood Detector</title>
@@ -72,30 +73,113 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h2>Typing Mood Detector</h2>
-        <form method="POST" action="{{ url_for('dashboard') }}">
+        <form id="moodForm" method="POST" action="{{ url_for('dashboard') }}">
             <label>Typed Sentence</label>
-            <input type="text" name="typed_sentence" required>
+            <input type="text" id="typed_sentence" name="typed_sentence" required autocomplete="off"
+                placeholder="Start typing here...">
 
             <label>Typing Speed (WPM)</label>
-            <input type="number" name="typing_speed" required>
+            <input type="number" id="typing_speed" name="typing_speed" required readonly step="0.01">
 
             <label>Backspace Rate</label>
-            <input type="number" step="0.01" name="backspace_rate" required>
+            <input type="number" step="0.01" id="backspace_rate" name="backspace_rate" required readonly>
 
             <label>Burst Duration (Seconds)</label>
-            <input type="number" step="0.1" name="burst_duration" required>
+            <input type="number" step="0.1" id="burst_duration" name="burst_duration" required readonly>
 
             <label>Idle Time (Seconds)</label>
-            <input type="number" step="0.1" name="idle_time" required>
+            <input type="number" step="0.1" id="idle_time" name="idle_time" required readonly>
 
             <label>Hold Time (Seconds)</label>
-            <input type="number" step="0.1" name="hold_time" required>
+            <input type="number" step="0.1" id="hold_time" name="hold_time" required readonly>
 
-            <button type="submit">Detect Mood</button>
+            <button type="submit" id="submitBtn">Detect Mood</button>
         </form>
+
+        <script>
+            const input = document.getElementById('typed_sentence');
+            const form = document.getElementById('moodForm');
+
+            let startTime = null;
+            let lastKeyTime = null;
+            let totalHoldTime = 0;
+            let keyCount = 0;
+            let backspaceCount = 0;
+            let idleTimeTotal = 0;
+            let keyStates = {}; // To track when each key was pressed
+            let autoSubmitTimer = null;
+
+            input.addEventListener('keydown', (e) => {
+                const now = Date.now();
+
+                if (!startTime) {
+                    startTime = now;
+                }
+
+                if (lastKeyTime) {
+                    idleTimeTotal += (now - lastKeyTime);
+                }
+
+                if (!keyStates[e.code]) {
+                    keyStates[e.code] = now;
+                }
+
+                if (e.key === 'Backspace') {
+                    backspaceCount++;
+                }
+
+                keyCount++;
+                clearTimeout(autoSubmitTimer);
+            });
+
+            input.addEventListener('keyup', (e) => {
+                const now = Date.now();
+                lastKeyTime = now;
+
+                if (keyStates[e.code]) {
+                    totalHoldTime += (now - keyStates[e.code]);
+                    delete keyStates[e.code];
+                }
+
+                calculateMetrics();
+
+                // Auto-submit after 1.5 seconds of idle time if there's content
+                if (input.value.trim().length > 3) {
+                    autoSubmitTimer = setTimeout(() => {
+                        form.submit();
+                    }, 1500);
+                }
+            });
+
+            function calculateMetrics() {
+                const now = Date.now();
+                const durationMs = now - startTime;
+                const durationSec = durationMs / 1000;
+                const durationMin = durationMs / 60000;
+
+                // WPM: (characters / 5) / minutes
+                const wpm = durationMin > 0 ? (input.value.length / 5) / durationMin : 0;
+
+                // Backspace Rate
+                const bsr = keyCount > 0 ? backspaceCount / keyCount : 0;
+
+                // Avg Hold Time
+                const avgHoldTime = keyCount > 0 ? (totalHoldTime / keyCount) / 1000 : 0;
+
+                // Idle Time
+                const idleSec = idleTimeTotal / 1000;
+
+                document.getElementById('typing_speed').value = wpm.toFixed(2);
+                document.getElementById('backspace_rate').value = bsr.toFixed(2);
+                document.getElementById('burst_duration').value = durationSec.toFixed(1);
+                document.getElementById('idle_time').value = idleSec.toFixed(1);
+                document.getElementById('hold_time').value = avgHoldTime.toFixed(1);
+            }
+        </script>
 
         {% if mood_result %}
         <div class="result">
@@ -105,4 +189,5 @@
         {% endif %}
     </div>
 </body>
+
 </html>
